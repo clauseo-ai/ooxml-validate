@@ -1,0 +1,13 @@
+# build outputs
+bin/
+obj/
+publish/
+*.user
+.vs/
+.idea/
+
+# test runs
+TestResults/
+
+# OS and editor noise
+.DS_Store
