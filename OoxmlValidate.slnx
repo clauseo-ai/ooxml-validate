@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OoxmlValidate/OoxmlValidate.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OoxmlValidate.Tests/OoxmlValidate.Tests.csproj" />
+  </Folder>
+</Solution>
