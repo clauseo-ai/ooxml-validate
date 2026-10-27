@@ -1,0 +1,174 @@
+name: release
+
+# Builds the self-contained tool for five targets on a `v*` tag, or by hand, and makes a DRAFT GitHub release holding
+# the archives, their SHA-256 files and the Homebrew formula filled for this version. Nothing is published: the draft is
+# visible to maintainers only, until one of them publishes it by hand. Nothing here pushes to a tap or any registry.
+# A manual run (workflow_dispatch) builds and checks everything but makes no release, because a release needs a tag.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+# Least privilege: the build jobs only read the repository, and only the draft job may write, to make the release.
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  version:
+    name: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      # A v* tag names the release. A manual run builds a development version, which is never released.
+      - name: Work out the version
+        id: version
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/v*) version="${GITHUB_REF_NAME#v}" ;;
+            *) version="0.0.0-dev" ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "building $version"
+
+  build:
+    name: build ${{ matrix.target.rid }}
+    needs: version
+    runs-on: ${{ matrix.target.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { rid: osx-arm64, runner: macos-15 }
+          - { rid: osx-x64, runner: macos-15-intel }
+          - { rid: linux-x64, runner: ubuntu-24.04 }
+          - { rid: linux-arm64, runner: ubuntu-24.04-arm }
+          - { rid: win-x64, runner: windows-2025 }
+    steps:
+      # Actions are pinned by commit SHA, with the release tag in a comment. Update both together.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test
+        run: dotnet test OoxmlValidate.slnx --configuration Release
+
+      # One file: the runtime and the libraries are inside it, so the archive needs no .NET on the machine.
+      - name: Publish
+        run: >-
+          dotnet publish src/OoxmlValidate --configuration Release
+          --runtime ${{ matrix.target.rid }} --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none
+          -p:Version=${{ needs.version.outputs.version }}
+          --output out/${{ matrix.target.rid }}
+
+      # Every target's binary runs on its own runner: the version, a bad file (exit 1) and a bad option (exit 2).
+      - name: Check it runs
+        shell: bash
+        run: |
+          bin="out/${{ matrix.target.rid }}/ooxml-validate"
+          if [ "${{ runner.os }}" = "Windows" ]; then bin="$bin.exe"; fi
+          version="$("$bin" --version | tr -d '\r')"
+          test "$version" = "ooxml-validate ${{ needs.version.outputs.version }}"
+          printf 'not a zip' > not-a-package.docx
+          set +e
+          "$bin" not-a-package.docx > /dev/null
+          code=$?
+          "$bin" --no-such-option > /dev/null 2>&1
+          usage=$?
+          set -e
+          test "$code" -eq 1
+          test "$usage" -eq 2
+
+      - name: Archive
+        shell: bash
+        run: |
+          name="ooxml-validate-${{ matrix.target.rid }}"
+          mkdir -p "dist/$name"
+          ext=""
+          if [ "${{ runner.os }}" = "Windows" ]; then ext=".exe"; fi
+          cp "out/${{ matrix.target.rid }}/ooxml-validate$ext" LICENSE NOTICE README.md "dist/$name/"
+          cd dist
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            7z a -tzip "$name.zip" "$name" > /dev/null
+            archive="$name.zip"
+          else
+            tar -czf "$name.tar.gz" "$name"
+            archive="$name.tar.gz"
+          fi
+          if command -v sha256sum > /dev/null; then sha256sum "$archive" > "$archive.sha256"; else shasum -a 256 "$archive" > "$archive.sha256"; fi
+          rm -r "$name"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: archive-${{ matrix.target.rid }}
+          path: dist/*
+          if-no-files-found: error
+
+  # The formula for the tap, filled from the archives' checksum files. The formula is checked for syntax here.
+  formula:
+    name: homebrew formula
+    needs: [version, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: archive-*
+          path: assets
+          merge-multiple: true
+
+      - name: Fill the formula
+        run: |
+          sh packaging/homebrew/fill-formula.sh assets "${{ needs.version.outputs.version }}" ooxml-validate.rb
+          ruby -c ooxml-validate.rb
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: homebrew
+          path: ooxml-validate.rb
+          if-no-files-found: error
+
+  # The draft release. Only a tag makes one; a manual run stops before it.
+  draft:
+    name: draft release
+    needs: [build, formula]
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: "*"
+          path: assets
+          merge-multiple: true
+
+      - name: Check the assets
+        run: |
+          test "$(find assets -name 'ooxml-validate-*.tar.gz' -o -name 'ooxml-validate-*.zip' | wc -l)" -eq 5
+          test "$(find assets -name '*.sha256' | wc -l)" -eq 5
+          test -f assets/ooxml-validate.rb
+
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" assets/* --draft --title "ooxml-validate $TAG" --notes "See CHANGELOG.md for what changed."
