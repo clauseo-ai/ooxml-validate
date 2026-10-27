@@ -129,7 +129,7 @@ JSON, compare: `format`, `pass`, `verdict`, `base` and `out` (each a file object
 | Code | Validate | Compare |
 | --- | --- | --- |
 | 0 | every file has no errors | no group is NEW (RESOLVED errors are fine) |
-| 1 | any error, or a file the SDK cannot open | any NEW group, or OUT cannot be opened |
+| 1 | any error, or a file the SDK cannot open | any NEW group (an OUT that cannot be opened is one, unless BASE has the same error) |
 | 2 | usage error (no file, bad option, bad `--format`, not exactly two files with `--compare`) | same |
 
 ## Limits
@@ -140,7 +140,7 @@ JSON, compare: `format`, `pass`, `verdict`, `base` and `out` (each a file object
 - **`.docx` only.** Other OOXML packages (`.xlsx`, `.pptx`) are reported as `PackageOpenFailed`.
 - **The SDK can stop early.** When a part throws during validation, the errors after it are not
   listed. A low count can understate the problems in such a file; the abort is reported as an error.
-- **Error cap.** The validator stops after 100,000 errors.
+- **Error cap.** The tool sets the validator's error limit to 100,000 per file.
 - **The count-based verdict** can miss a swap of one error for another of the same shape, as above.
 - **Timing.** About 0.3 s per file including .NET start-up on Apple silicon. Compare validates two
   files, one after the other.
@@ -148,7 +148,7 @@ JSON, compare: `format`, `pass`, `verdict`, `base` and `out` (each a file object
 ## Used by
 
 The stetdoc docx benchmark uses it to check the `.docx` files its agents produce, with `--compare`
-against the input. See [stetdoc](https://github.com/clauseo-ai/stetdoc).
+against the input document. See [stetdoc](https://github.com/clauseo-ai/stetdoc).
 
 ## Development
 
