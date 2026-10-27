@@ -6,6 +6,7 @@
 // Exit codes: 0 = clean (or, with --compare, no new errors); 1 = errors found,
 // new errors, or a file the SDK cannot open; 2 = usage error.
 
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -54,6 +55,7 @@ public static class Cli
                          One of: Office2007 Office2010 Office2013 Office2016 Office2019 Office2021 Microsoft365
           --json         machine-readable output on stdout
           --compare      report errors present in OUT but not in BASE (give exactly two files)
+          --version      print the version and exit
           -h, --help     this text
 
         Compare matching: errors are grouped by Id + PartUri + description with every digit
@@ -64,6 +66,11 @@ public static class Cli
         Exit codes: 0 = clean / no new errors; 1 = errors / new errors / unopenable file; 2 = usage.
 
         """;
+
+    /// <summary>The version line: the assembly's informational version, which the build sets (-p:Version=...).</summary>
+    public static string VersionText =>
+        "ooxml-validate " + (typeof(Cli).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0-dev");
 
     public static int Run(string[] args, TextWriter stdout, TextWriter stderr)
     {
@@ -76,6 +83,7 @@ public static class Cli
         {
             var a = args[i];
             if (a is "-h" or "--help") { stdout.Write(Usage); return ExitOk; }
+            if (a == "--version") { stdout.WriteLine(VersionText); return ExitOk; }
             if (a == "--json") { json = true; continue; }
             if (a == "--compare") { compare = true; continue; }
             if (a == "--format" || a.StartsWith("--format=", StringComparison.Ordinal))
