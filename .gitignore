@@ -11,3 +11,6 @@ TestResults/
 
 # OS and editor noise
 .DS_Store
+# local publish and release outputs (the README publishes to ./out)
+out/
+dist/
