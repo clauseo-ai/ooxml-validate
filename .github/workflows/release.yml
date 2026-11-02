@@ -98,7 +98,7 @@ jobs:
           mkdir -p "dist/$name"
           ext=""
           if [ "${{ runner.os }}" = "Windows" ]; then ext=".exe"; fi
-          cp "out/${{ matrix.target.rid }}/ooxml-validate$ext" LICENSE NOTICE README.md "dist/$name/"
+          cp "out/${{ matrix.target.rid }}/ooxml-validate$ext" LICENSE NOTICE THIRD-PARTY-NOTICES.txt README.md "dist/$name/"
           cd dist
           if [ "${{ runner.os }}" = "Windows" ]; then
             7z a -tzip "$name.zip" "$name" > /dev/null
