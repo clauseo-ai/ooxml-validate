@@ -38,6 +38,8 @@ class OoxmlValidate < Formula
 
   def install
     bin.install Dir["**/ooxml-validate"].first => "ooxml-validate"
+    # Homebrew keeps LICENSE, NOTICE and README.md by itself, but not the .NET runtime's third-party notices.
+    prefix.install Dir["**/THIRD-PARTY-NOTICES.txt"]
   end
 
   test do
