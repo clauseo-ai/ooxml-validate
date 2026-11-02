@@ -74,8 +74,8 @@ public sealed class ValidateTests : IDisposable
 
         Assert.Equal(1, r.ExitCode);
         Assert.Contains("SUMMARY", r.Stdout);
-        Assert.Matches(new Regex(@"(?m)^\s+0\s+" + Regex.Escape(good) + "$"), r.Stdout);
-        Assert.Matches(new Regex(@"(?m)^\s+1\s+" + Regex.Escape(bad) + "$"), r.Stdout);
+        Assert.Matches(new Regex(@"(?m)^\s+0\s+" + Regex.Escape(good) + @"\r?$"), r.Stdout);
+        Assert.Matches(new Regex(@"(?m)^\s+1\s+" + Regex.Escape(bad) + @"\r?$"), r.Stdout);
     }
 
     [Fact]
