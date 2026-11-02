@@ -1,15 +1,62 @@
 # ooxml-validate
 
 A command-line wrapper around Microsoft's Open XML SDK validator. It runs `OpenXmlValidator` from
-DocumentFormat.OpenXml on `.docx` files, prints what it finds, and adds two things the SDK does not:
+DocumentFormat.OpenXml 3.5.1 (the version in `src/OoxmlValidate/OoxmlValidate.csproj`) on `.docx` files, prints what it finds, and adds two things the SDK does not:
 a JSON output and a `--compare` mode that says whether an edited file has new errors.
 
 The validation itself is Microsoft's. This tool does not check the OOXML schema or the package
 itself; it only reads arguments, calls the SDK, groups the results and sets the exit code.
 
+## Why it exists
+
+[docx-agent-bench](https://github.com/clauseo-ai/docx-agent-bench) uses it as one of its validity checks. That
+benchmark has AI agents edit Word documents and runs `ooxml-validate --compare` on each file an agent wrote, against
+the input document, to see whether the edit added schema errors. Input documents can have errors of their own,
+which is why the compare mode counts new errors instead of failing on any error.
+
+Both this tool and the benchmark come from Clauseo (https://clauseo.chat), which makes
+[stetdoc](https://github.com/clauseo-ai/stetdoc), a tool that lets AI agents edit .docx files with tracked changes and
+comments. The benchmark compares stetdoc with other setups. ooxml-validate does not depend on stetdoc and works on any
+.docx.
+
 ## Install
 
-### From source (now)
+### Homebrew (macOS and Linux, arm64 and x64)
+
+```sh
+brew install clauseo-ai/tap/ooxml-validate
+```
+
+There is no Windows formula; use the release archive.
+
+### Release binaries
+
+The GitHub release [v0.1.0](https://github.com/clauseo-ai/ooxml-validate/releases/tag/v0.1.0) has one
+self-contained archive per platform, so the machine that runs it needs no .NET:
+
+| Platform | Asset |
+| --- | --- |
+| macOS, Apple silicon | `ooxml-validate-osx-arm64.tar.gz` |
+| macOS, Intel | `ooxml-validate-osx-x64.tar.gz` |
+| Linux x64 | `ooxml-validate-linux-x64.tar.gz` |
+| Linux arm64 | `ooxml-validate-linux-arm64.tar.gz` |
+| Windows x64 | `ooxml-validate-win-x64.zip` |
+
+Each archive has a `.sha256` file beside it and unpacks to `ooxml-validate-<rid>/`, which holds the binary
+(`ooxml-validate.exe` on Windows), LICENSE, NOTICE, THIRD-PARTY-NOTICES.txt and this README. For example:
+
+```sh
+base=https://github.com/clauseo-ai/ooxml-validate/releases/download/v0.1.0
+curl -fLO $base/ooxml-validate-osx-arm64.tar.gz
+curl -fLO $base/ooxml-validate-osx-arm64.tar.gz.sha256
+shasum -a 256 -c ooxml-validate-osx-arm64.tar.gz.sha256     # or: sha256sum -c
+tar -xzf ooxml-validate-osx-arm64.tar.gz
+./ooxml-validate-osx-arm64/ooxml-validate --version
+```
+
+The release also carries `ooxml-validate.rb`, the Homebrew formula the tap uses.
+
+### From source
 
 You need the .NET 10 SDK. From a clone of this repository:
 
@@ -23,19 +70,8 @@ dotnet publish src/OoxmlValidate -c Release -r osx-arm64 --self-contained true \
 ./out/ooxml-validate --version
 ```
 
-Replace `osx-arm64` with `osx-x64`, `linux-x64`, `linux-arm64` or `win-x64` for another platform.
-
-### Homebrew and release binaries (with the first release)
-
-These are not published yet. Once a release is out, they will be:
-
-```sh
-brew install clauseo-ai/tap/ooxml-validate
-```
-
-and a GitHub release will carry self-contained archives for macOS (arm64, x64), Linux (x64, arm64)
-and Windows (x64), each with a `.sha256` file. The Homebrew formula template is in
-`packaging/homebrew/`.
+Replace `osx-arm64` with `osx-x64`, `linux-x64`, `linux-arm64` or `win-x64` for another platform. The release
+builds use the same command (`.github/workflows/release.yml`).
 
 ## Usage
 
@@ -47,7 +83,7 @@ ooxml-validate --version | --help
 
 | Option | Meaning |
 | --- | --- |
-| `--format NAME` | The `FileFormatVersions` to validate against. One of `Office2007`, `Office2010`, `Office2013`, `Office2016`, `Office2019`, `Office2021`, `Microsoft365`. The default is `Microsoft365`. Names are case-insensitive. |
+| `--format NAME` (or `--format=NAME`) | The `FileFormatVersions` to validate against. One of `Office2007`, `Office2010`, `Office2013`, `Office2016`, `Office2019`, `Office2021`, `Microsoft365`. The default is `Microsoft365`. Names are case-insensitive. |
 | `--json` | One JSON object on stdout instead of text. |
 | `--compare` | Give exactly two files, BASE then OUT. Reports the errors in OUT that are new compared with BASE. |
 | `--version` | Print `ooxml-validate <version>` and exit. |
@@ -142,13 +178,7 @@ JSON, compare: `format`, `pass`, `verdict`, `base` and `out` (each a file object
   listed. A low count can understate the problems in such a file; the abort is reported as an error.
 - **Error cap.** The tool sets the validator's error limit to 100,000 per file.
 - **The count-based verdict** can miss a swap of one error for another of the same shape, as above.
-- **Timing.** About 0.3 s per file including .NET start-up on Apple silicon. Compare validates two
-  files, one after the other.
-
-## Used by
-
-The stetdoc docx benchmark uses it to check the `.docx` files its agents produce, with `--compare`
-against the input document. See [stetdoc](https://github.com/clauseo-ai/stetdoc).
+- **Compare validates two files**, BASE then OUT, one after the other.
 
 ## Development
 
@@ -162,4 +192,6 @@ verdicts, and the exit codes.
 
 ## Licence
 
-MIT, see [LICENSE](LICENSE). The Open XML SDK is MIT-licensed too; see [NOTICE](NOTICE).
+MIT, see [LICENSE](LICENSE). The release binaries bundle the Open XML SDK, System.IO.Packaging and the .NET
+runtime, all MIT-licensed; see [NOTICE](NOTICE). The runtime's own third-party notices are in
+[THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
