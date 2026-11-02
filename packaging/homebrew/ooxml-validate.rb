@@ -1,17 +1,17 @@
-# Homebrew formula for the ooxml-validate command-line tool. This is a template, not a formula you can install as it stands.
+# Homebrew formula for the ooxml-validate command-line tool, for the tap clauseo-ai/homebrew-tap, so that
+# `brew install clauseo-ai/tap/ooxml-validate` works. See https://docs.brew.sh/Taps.
+#@ This is a template, not a formula you can install as it stands. The release workflow
+#@ (.github/workflows/release.yml) fills in the version and the four SHA-256 values with
+#@ packaging/homebrew/fill-formula.sh, from the release's `.sha256` files, and attaches the result to the draft
+#@ release as ooxml-validate.rb. The fill script drops these "#@" lines. A maintainer copies the filled file into
+#@ the tap as Formula/ooxml-validate.rb. Nothing here pushes to a tap.
 #
-# The release workflow (.github/workflows/release.yml) fills in the version and the four SHA-256 values, which are
-# the placeholders in the url and sha256 lines below, with packaging/homebrew/fill-formula.sh, from the release's
-# `.sha256` files, and attaches the result to the draft release as ooxml-validate.rb. To publish it, a maintainer copies that file into a tap repository, as
-# Formula/ooxml-validate.rb in a repository named homebrew-tap, so that `brew install clauseo-ai/tap/ooxml-validate`
-# works. Nothing here pushes to a tap. See https://docs.brew.sh/Taps and https://docs.brew.sh/Formula-Cookbook.
-#
-# The archives hold a single directory, ooxml-validate-<rid>/, with the self-contained binary, LICENSE, NOTICE and
-# README.md in it. Homebrew enters that directory when it unpacks an archive, so the glob below finds the binary either way.
+# The archives hold a single directory, ooxml-validate-<rid>/, with the self-contained binary, LICENSE, NOTICE,
+# THIRD-PARTY-NOTICES.txt and README.md in it. Homebrew enters that directory when it unpacks an archive, so the glob
+# below finds the binary either way.
 class OoxmlValidate < Formula
-  desc "Validate .docx files with the Open XML SDK validator, with a count-based compare for edits"
+  desc "Validate .docx files with the Open XML SDK validator, or compare two"
   homepage "https://github.com/clauseo-ai/ooxml-validate"
-  version "@VERSION@"
   license "MIT"
 
   on_macos do

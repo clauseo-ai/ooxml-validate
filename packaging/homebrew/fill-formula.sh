@@ -1,7 +1,7 @@
 #!/bin/sh
 # Fills the placeholders of packaging/homebrew/ooxml-validate.rb from the release's checksum files and writes the result.
 # Usage: sh packaging/homebrew/fill-formula.sh <assets dir> <version> <out file>
-# It reads ooxml-validate-<rid>.tar.gz.sha256 for the four macOS and Linux targets. It fails if a checksum file is
+# It drops the template-only "#@" comment lines. It reads ooxml-validate-<rid>.tar.gz.sha256 for the four macOS and Linux targets. It fails if a checksum file is
 # missing or malformed, or if a placeholder is left. It writes the file only; nothing is pushed to a tap.
 set -eu
 
@@ -13,13 +13,15 @@ assets=$1
 version=$2
 out=$3
 
+# The version without the tag's "v": 0.1.0, not v0.1.0, since the url template adds the "v" itself.
 case "$version" in
-  ''|*[!0-9A-Za-z.+-]*) echo "fill-formula: bad version: $version" >&2; exit 2 ;;
+  ''|v*|*[!0-9A-Za-z.+-]*) echo "fill-formula: bad version: $version (give 0.1.0, not v0.1.0)" >&2; exit 2 ;;
 esac
 
 template="$(cd "$(dirname "$0")" && pwd)/ooxml-validate.rb"
 tmp="$out.tmp"
-cp "$template" "$tmp"
+# The "#@" comment lines describe the template only; the filled formula leaves them out.
+sed '/^#@/d' "$template" > "$tmp"
 sed "s/@VERSION@/$version/g" "$tmp" > "$tmp.2" && mv "$tmp.2" "$tmp"
 
 for rid in osx-arm64 osx-x64 linux-arm64 linux-x64; do
